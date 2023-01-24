@@ -43,19 +43,19 @@ job_json = {
             {
                 "job_cluster_key": "sample_solacc_cluster",
                 "notebook_task": {
-                    "notebook_path": f"01_Introduction_And_Setup"
+                    "notebook_path": f"01_network_defense_setup"
                 },
-                "task_key": "sample_solacc_01"
+                "task_key": "cyber_ml_01"
             },
             {
                 "job_cluster_key": "sample_solacc_cluster",
                 "notebook_task": {
-                    "notebook_path": f"02_Analysis"
+                    "notebook_path": f"02_network_defense_ml"
                 },
-                "task_key": "sample_solacc_02",
+                "task_key": "cyber_ml_02",
                 "depends_on": [
                     {
-                        "task_key": "sample_solacc_01"
+                        "task_key": "cyber_ml_01"
                     }
                 ]
             }
