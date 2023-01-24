@@ -3,6 +3,23 @@
 
 # COMMAND ----------
 
+# MAGIC %sh
+# MAGIC 
+# MAGIC mkdir /dbfs/tmp/cyber_ml
+# MAGIC cd /dbfs/tmp/cyber_ml
+# MAGIC pwd
+# MAGIC echo "Removing all files"
+# MAGIC rm -rf *
+# MAGIC 
+# MAGIC fname="NSL-KDD.zip"
+# MAGIC dlpath="https://raw.githubusercontent.com/lipyeow-lim/security-datasets01/main/nsl-kdd-1999/$fname"
+# MAGIC wget $dlpath
+# MAGIC unzip $fname
+# MAGIC 
+# MAGIC ls -lR
+
+# COMMAND ----------
+
 # MAGIC %pip install graphviz
 
 # COMMAND ----------
@@ -30,9 +47,10 @@ for s in sql_list:
 
 # COMMAND ----------
 
-dataset_root = '/dbfs/FileStore/kristin@databricks.com'
+dataset_root = '/dbfs' + getParam("download_path")
 train_file = os.path.join(dataset_root, 'KDDTrain_.csv')
 test_file = os.path.join(dataset_root, 'KDDTest_.csv')
+
 
 # COMMAND ----------
 
