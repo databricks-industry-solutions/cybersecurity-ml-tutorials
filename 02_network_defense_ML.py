@@ -1,5 +1,5 @@
 # Databricks notebook source
-# MAGIC %run ./01_network_defense_setup
+# MAGIC %run ./config/notebook_config
 
 # COMMAND ----------
 
@@ -55,17 +55,24 @@
 
 # COMMAND ----------
 
-# MAGIC %fs ls /FileStore/kristin@databricks.com/
+# MAGIC %fs ls /tmp/cyber_ml
 
 # COMMAND ----------
 
 # DBTITLE 1,Load Training & Test Data
-trainingdf = spark.read.table("networking_demo.training_data")
-testdf = spark.read.table("networking_demo.testing_data")
-display(testdf)
+trainingdf = spark.read.table(f"{getParam('db')}.training_data")
+testingdf = spark.read.table(f"{getParam('db')}.testing_data")
+display(testingdf)
+header_names = testingdf.columns
 
 # COMMAND ----------
 
+import os
+from collections import defaultdict
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+%matplotlib inline
 # Differentiating between nominal, binary, and numeric features
 
 # root_shell is marked as a continuous feature in the kddcup.names 
@@ -86,19 +93,50 @@ numeric_cols = col_names[numeric_idx].tolist()
 
 # DBTITLE 1,Category Distribution
 # training_attack_types.txt maps each of the different attacks to 1 of 4 categories
-# file obtained from http://kdd.ics.uci.edu/databases/kddcup99/training_attack_types
+# the data is obtained from http://kdd.ics.uci.edu/databases/kddcup99/training_attack_types
 
-from collections import defaultdict
+attack_mapping = {
+ 'normal': 'benign',
+ 'apache2': 'dos',
+ 'back': 'dos',
+ 'mailbomb': 'dos',
+ 'processtable': 'dos',
+ 'snmpgetattack': 'dos',
+ 'teardrop': 'dos',
+ 'smurf': 'dos',
+ 'land': 'dos',
+ 'neptune': 'dos',
+ 'pod': 'dos',
+ 'udpstorm': 'dos',
+ 'ps': 'u2r',
+ 'buffer_overflow': 'u2r',
+ 'perl': 'u2r',
+ 'rootkit': 'u2r',
+ 'loadmodule': 'u2r',
+ 'xterm': 'u2r',
+ 'sqlattack': 'u2r',
+ 'httptunnel': 'u2r',
+ 'ftp_write': 'r2l',
+ 'guess_passwd': 'r2l',
+ 'snmpguess': 'r2l',
+ 'imap': 'r2l',
+ 'spy': 'r2l',
+ 'warezclient': 'r2l',
+ 'warezmaster': 'r2l',
+ 'multihop': 'r2l',
+ 'phf': 'r2l',
+ 'named': 'r2l',
+ 'sendmail': 'r2l',
+ 'xlock': 'r2l',
+ 'xsnoop': 'r2l',
+ 'worm': 'probe',
+ 'nmap': 'probe',
+ 'ipsweep': 'probe',
+ 'portsweep': 'probe',
+ 'satan': 'probe',
+ 'mscan': 'probe',
+ 'saint': 'probe'}
 
-category = defaultdict(list)
-category['benign'].append('normal')
-
-with open('/dbfs/FileStore/kristin@databricks.com/training_attack_types.txt', 'r') as f:
-    for line in f.readlines():
-        attack, cat = line.strip().split(' ')
-        category[cat].append(attack)
-
-attack_mapping = dict((v,k) for k in category for v in category[k])
 display(attack_mapping)
 
 # COMMAND ----------
@@ -109,12 +147,12 @@ display(attack_mapping)
 
 # COMMAND ----------
 
-train_df = pd.read_csv(train_file, names=header_names)
+train_df = trainingdf.toPandas()
 train_df['attack_category'] = train_df['attack_type'] \
                                 .map(lambda x: attack_mapping[x])
 train_df.drop(['success_pred'], axis=1, inplace=True)
     
-test_df = pd.read_csv(test_file, names=header_names)
+test_df = testingdf.toPandas()
 test_df['attack_category'] = test_df['attack_type'] \
                                 .map(lambda x: attack_mapping[x])
 test_df.drop(['success_pred'], axis=1, inplace=True)

@@ -1,4 +1,9 @@
 # Databricks notebook source
+# MAGIC %pip install graphviz
+# MAGIC %pip install pydotplus
+
+# COMMAND ----------
+
 # MAGIC %run ./config/notebook_config
 
 # COMMAND ----------
@@ -20,20 +25,7 @@
 
 # COMMAND ----------
 
-# MAGIC %pip install graphviz
 
-# COMMAND ----------
-
-# MAGIC %pip install pydotplus
-
-# COMMAND ----------
-
-import os
-from collections import defaultdict
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-%matplotlib inline
 
 # COMMAND ----------
 
@@ -47,9 +39,9 @@ for s in sql_list:
 
 # COMMAND ----------
 
-dataset_root = '/dbfs' + getParam("download_path")
-train_file = os.path.join(dataset_root, 'KDDTrain_.csv')
-test_file = os.path.join(dataset_root, 'KDDTest_.csv')
+dataset_root = getParam("download_path")
+train_file = os.path.join(dataset_root, 'KDDTrain+.txt')
+test_file = os.path.join(dataset_root, 'KDDTest+.txt')
 
 
 # COMMAND ----------
@@ -62,10 +54,11 @@ testdf = (spark.read
   .format("csv")
   .option("mode", "PERMISSIVE")
   .option("inferSchema", "true")
-  .load('/FileStore/kristin@databricks.com/KDDTest_.csv')
+  .load(test_file)
 )
 
 testdf = testdf.toDF(*header_names)
+testdf.write.mode("overwrite").saveAsTable("testing_data")
 
 # COMMAND ----------
 
@@ -73,15 +66,26 @@ trainingdf = (spark.read
   .format("csv")
   .option("mode", "PERMISSIVE")
   .option("inferSchema", "true")
-  .load('/FileStore/kristin@databricks.com/KDDTrain_.csv')
+  .load(train_file)
 )
 
 trainingdf = trainingdf.toDF(*header_names)
-
-# COMMAND ----------
-
-testdf.write.mode("overwrite").saveAsTable("testing_data")
-
-# COMMAND ----------
-
 trainingdf.write.mode("overwrite").saveAsTable("training_data")
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC 
+# MAGIC select *
+# MAGIC from testing_data
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC 
+# MAGIC select *
+# MAGIC from training_data
+
+# COMMAND ----------
+
+
