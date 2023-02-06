@@ -95,6 +95,8 @@ numeric_cols = col_names[numeric_idx].tolist()
 # training_attack_types.txt maps each of the different attacks to 1 of 4 categories
 # the data is obtained from http://kdd.ics.uci.edu/databases/kddcup99/training_attack_types
 
+categories = ['benign', 'dos', 'u2r', 'r2l', 'probe']
+
 attack_mapping = {
  'normal': 'benign',
  'apache2': 'dos',
@@ -446,7 +448,7 @@ with mlflow.start_run(run_name="classification_PCA"):
   plt.figure(figsize=(15,10))
   colors = ['navy', 'turquoise', 'darkorange', 'red', 'purple']
 
-  for color, cat in zip(colors, category.keys()):
+  for color, cat in zip(colors, categories):
       plt.scatter(train_x_pca_cont[train_Y==cat, 0], train_x_pca_cont[train_Y==cat, 1],
                   color=color, alpha=.8, lw=2, label=cat)
   plt.legend(loc='best', shadow=False, scatterpoints=1)
