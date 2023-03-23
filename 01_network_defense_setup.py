@@ -25,10 +25,6 @@
 
 # COMMAND ----------
 
-
-
-# COMMAND ----------
-
 sql_list = [ f"""
 CREATE SCHEMA IF NOT EXISTS {getParam('db')} COMMENT 'This is a network cyber ml demo schema'""",
 f"""USE SCHEMA {getParam('db')}""" ]
@@ -85,7 +81,3 @@ trainingdf.write.mode("overwrite").saveAsTable("training_data")
 # MAGIC 
 # MAGIC select *
 # MAGIC from training_data
-
-# COMMAND ----------
-
-

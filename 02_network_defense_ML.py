@@ -1,14 +1,14 @@
 # Databricks notebook source
-# MAGIC %run ./config/notebook_config
+# MAGIC %run ./01_network_defense_setup
 
 # COMMAND ----------
 
 # MAGIC %md #Theory of Network Defense
-# MAGIC Networks have a broad range of attack surfaces and threat vectors - this makes the defense model quite complicated. This means that administrators must engage with attackers on multiple fronts. Importantly, we must make not make assumptions about any one component of the system.
+# MAGIC Networks are complex systems. From a defensive perspective, networks may be open to a broad range of attack surfaces and threat vectors. This means that network defenders must engage with attackers on multiple fronts. Importantly, we must make not make assumptions about individual components of the system.
 # MAGIC 
 # MAGIC 
 # MAGIC ### Machine Learning and Network Security
-# MAGIC A primary strength in machine learning is pattern mining, and there are many inherent patterns within a set of network traffic data. Network traffic is strictly governed by a set of protocols that result in structures and patterns in the data. We can also identify malicious activity by mining for patterns and drawing correlations in the data, especially for attacks that rely on volume and/or iteration (e.g. network scanning and DoS attacks).
+# MAGIC A primary strength of machine learning is pattern mining, or identifying rules that describe specific patterns within a dataset. Network traffic is strictly governed by a set of protocols that result in structures and patterns in the data. We can use pattern mining techniques to identify malicious activity by looking for patterns and drawing correlations in the data. This is especially useful for attacks that rely on volume and/or iteration (e.g. network scanning and DoS attacks).
 # MAGIC 
 # MAGIC **Scenario:**
 # MAGIC Our task is to devise a general classifier that categorizes each sample as one of five classes:
@@ -18,12 +18,12 @@
 # MAGIC 4. u2r - Privilege escalation attempts
 # MAGIC 5. probe - Brute force probing attacks
 # MAGIC 
-# MAGIC Demo is based on these [resources](https://github.com/oreilly-mlsec/book-resources/tree/master/chapter5)
+# MAGIC **Reference:** Demo is based on these [resources](https://github.com/oreilly-mlsec/book-resources/tree/master/chapter5)
 # MAGIC 
-# MAGIC **Databricks Capabilities**
+# MAGIC **Databricks Capabilities:**
 # MAGIC Databricks Machine Learning is an integrated end-to-end machine learning environment incorporating managed services for experiment tracking, model training, feature development and management, and feature and model serving. The diagram shows how the capabilities of Databricks map to the steps of the model development and deployment process.
 # MAGIC 
-# MAGIC <div><img width="800" src="https://docs.databricks.com/_images/ml-diagram.png"/></div>
+# MAGIC <div><img width="800" src="https://docs.databricks.com/_images/ml-diagram-model-development-deployment.png"/></div>
 
 # COMMAND ----------
 
@@ -60,34 +60,29 @@
 # COMMAND ----------
 
 # DBTITLE 1,Load Training & Test Data
-trainingdf = spark.read.table(f"{getParam('db')}.training_data")
-testingdf = spark.read.table(f"{getParam('db')}.testing_data")
-display(testingdf)
-header_names = testingdf.columns
-
-# COMMAND ----------
-
 import os
 from collections import defaultdict
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 %matplotlib inline
+
+trainingdf = spark.read.table(f"{getParam('db')}.training_data")
+testingdf = spark.read.table(f"{getParam('db')}.testing_data")
+header_names = testingdf.columns
+
 # Differentiating between nominal, binary, and numeric features
-
-# root_shell is marked as a continuous feature in the kddcup.names 
-# file, but it is supposed to be a binary feature according to the 
-# dataset documentation
-
-col_names = np.array(header_names)
+column_names = np.array(header_names)
 
 nominal_idx = [1, 2, 3]
 binary_idx = [6, 11, 13, 14, 20, 21]
 numeric_idx = list(set(range(41)).difference(nominal_idx).difference(binary_idx))
 
-nominal_cols = col_names[nominal_idx].tolist()
-binary_cols = col_names[binary_idx].tolist()
-numeric_cols = col_names[numeric_idx].tolist()
+nominal_cols = column_names[nominal_idx].tolist()
+binary_cols = column_names[binary_idx].tolist()
+numeric_cols = column_names[numeric_idx].tolist()
+
+display(testingdf)
 
 # COMMAND ----------
 
@@ -145,18 +140,16 @@ display(attack_mapping)
 
 # MAGIC %md
 # MAGIC ### Analyze train and test sets
-# MAGIC It is important to consider class distribution within the traing and test data sets. Sometimes this can be difficult, but it is helpful to have a general idea of what is expected. Because we have access to the test data in this example, we can consume the data to get its distribution.
+# MAGIC It is important to consider class distribution within the trainng and test data sets because it can helpful to get a general idea of what is expected. Since we have access to the test data in this example, we will consume the data to get its distribution.
 
 # COMMAND ----------
 
 train_df = trainingdf.toPandas()
-train_df['attack_category'] = train_df['attack_type'] \
-                                .map(lambda x: attack_mapping[x])
+train_df['attack_category'] = train_df['attack_type'].map(lambda x: attack_mapping[x])
 train_df.drop(['success_pred'], axis=1, inplace=True)
     
 test_df = testingdf.toPandas()
-test_df['attack_category'] = test_df['attack_type'] \
-                                .map(lambda x: attack_mapping[x])
+test_df['attack_category'] = test_df['attack_type'].map(lambda x: attack_mapping[x])
 test_df.drop(['success_pred'], axis=1, inplace=True)
 
 # COMMAND ----------
@@ -177,35 +170,27 @@ train_attack_cats.plot(kind='barh', figsize=(10,5), fontsize=15)
 
 # COMMAND ----------
 
-# Let's take a look at the binary features
-# By definition, all of these features should have a min of 0.0 and a max of 1.0
-
+# Binary features - all of these features should have a min of 0.0 and a max of 1.0
 train_df[binary_cols].describe().transpose()
 
 # COMMAND ----------
 
-# Wait a minute... the su_attempted column has a max value of 2.0?
-
+# Note the su_attempted column has a max value of 2.0. Why is that?
 train_df.groupby(['su_attempted']).size()
 
 # COMMAND ----------
 
-# Let's fix this discrepancy and assume that su_attempted=2 -> su_attempted=0
-
+# Let's fix this and assume that su_attempted=2 really means su_attempted=0
 train_df['su_attempted'].replace(2, 0, inplace=True)
 test_df['su_attempted'].replace(2, 0, inplace=True)
 train_df.groupby(['su_attempted']).size()
 
 # COMMAND ----------
 
-# Next, we notice that the num_outbound_cmds column only takes on one value!
-
+# We also notice that the num_outbound_cmds column only takes on one value
 train_df.groupby(['num_outbound_cmds']).size()
 
-# COMMAND ----------
-
-# Now, that's not a very useful feature - let's drop it from the dataset
-
+# This is not a useful feature - let's drop it from the dataset
 train_df.drop('num_outbound_cmds', axis = 1, inplace=True)
 test_df.drop('num_outbound_cmds', axis = 1, inplace=True)
 numeric_cols.remove('num_outbound_cmds')
@@ -239,7 +224,7 @@ train_x = combined_df[:len(train_x_raw)]
 test_x = combined_df[len(train_x_raw):]
 
 # Store dummy variable feature names
-dummy_variables = list(set(train_x)-set(combined_df_raw))
+dummy_variables = list(set(train_x) - set(combined_df_raw))
 
 # COMMAND ----------
 
@@ -258,7 +243,8 @@ train_x['duration'].describe()
 
 # COMMAND ----------
 
-# Experimenting with StandardScaler on the single 'duration' feature
+# Let's experiment with StandardScaler on the 'duration' feature. 
+# This will standardize the feature by removing the mean and scaling to unit variance.
 from sklearn.preprocessing import StandardScaler
 
 durations = train_x['duration'].values.reshape(-1, 1)
@@ -273,20 +259,16 @@ pd.Series(scaled_durations.flatten()).describe()
 # COMMAND ----------
 
 # DBTITLE 1,Apply StandardScaler to All Numeric Columns
-# Let's proceed with StandardScaler- Apply to all the numeric columns
+# Let's apply to all the numeric columns
 
 standard_scaler = StandardScaler().fit(train_x[numeric_cols])
-
-train_x[numeric_cols] = \
-    standard_scaler.transform(train_x[numeric_cols])
-
-test_x[numeric_cols] = \
-    standard_scaler.transform(test_x[numeric_cols])
+train_x[numeric_cols] = standard_scaler.transform(train_x[numeric_cols])
+test_x[numeric_cols] = standard_scaler.transform(test_x[numeric_cols])
 
 # COMMAND ----------
 
 # MAGIC %md #3/ Classification
-# MAGIC To review, we have a five-class classification problem in which each sample belongs to one of five classes. There are many different suitable classification algorithms for a problem like this, and many different ways to approach the problem of multiclass classification.
+# MAGIC At this point we have a five-class classification problem in which each sample belongs to one of five classes. There are many different suitable  algorithms for a problem like this, and many different ways to approach the problem of multiclass classification.
 # MAGIC 
 # MAGIC In general, here are some questions you can ask yourself when selecting an ML algorithm:
 # MAGIC - What is the size of your training set?
@@ -341,7 +323,7 @@ print(error)
 # COMMAND ----------
 
 # MAGIC %md ### Not Bad!
-# MAGIC We just a little code and no tuning, we have a 76.2% classification accuracy
+# MAGIC With just a little code and no tuning we have a 76.2% classification accuracy
 
 # COMMAND ----------
 
@@ -352,7 +334,7 @@ print(error)
 
 # COMMAND ----------
 
-#get the latest model from the registry
+# Get the latest model from the registry
 run_id = mlflow.search_runs()['run_id'][0]
 model_registered = mlflow.register_model("runs:/"+run_id+"/decisiontreeclf", "network_classification")
 
@@ -365,8 +347,9 @@ model_registered = mlflow.register_model("runs:/"+run_id+"/decisiontreeclf", "ne
 # COMMAND ----------
 
 client = mlflow.tracking.MlflowClient()
-print("registering model version "+run_id+" as production model")
 client.transition_model_version_stage(name = "network_classification", version = model_registered.version, stage = "Production", archive_existing_versions=True)
+
+print("registering model version "+run_id+" as production model")
 
 # COMMAND ----------
 
@@ -436,7 +419,7 @@ print(error)
 # COMMAND ----------
 
 # DBTITLE 1,Visualize Numeric Columns - Principal Component Analysis
-# First, let's visualize the dataset (only numeric cols)
+# First, let's visualize the dataset (only numeric columns)
 
 from sklearn.decomposition import PCA
 
